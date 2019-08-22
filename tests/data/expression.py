@@ -371,7 +371,9 @@ tuple[str, int, float, dict[str, int]]
 very_long_variable_name_filters: t.List[
     t.Tuple[str, t.Union[str, t.List[t.Optional[str]]]],
 ]
-xxxx_xxxxx_xxxx_xxx: Callable[..., List[SomeClass]] = classmethod(  # type: ignore
+xxxx_xxxxx_xxxx_xxx: Callable[
+    ..., List[SomeClass]
+] = classmethod(  # type: ignore
     sync(async_xxxx_xxx_xxxx_xxxxx_xxxx_xxx.__func__)
 )
 xxxx_xxx_xxxx_xxxxx_xxxx_xxx: Callable[
@@ -436,16 +438,17 @@ d = (1,) + a + (2,)
 e = (1,).count(1)
 f = 1, *range(10)
 g = 1, *"ten"
-what_is_up_with_those_new_coord_names = (coord_names + set(vars_to_create)) + set(
-    vars_to_remove
-)
-what_is_up_with_those_new_coord_names = (coord_names | set(vars_to_create)) - set(
-    vars_to_remove
-)
+what_is_up_with_those_new_coord_names = (
+    coord_names + set(vars_to_create)
+) + set(vars_to_remove)
+what_is_up_with_those_new_coord_names = (
+    coord_names | set(vars_to_create)
+) - set(vars_to_remove)
 result = (
     session.query(models.Customer.id)
     .filter(
-        models.Customer.account_id == account_id, models.Customer.email == email_address
+        models.Customer.account_id == account_id,
+        models.Customer.email == email_address,
     )
     .order_by(models.Customer.id.asc())
     .all()

@@ -2,7 +2,8 @@ class C:
     def test(self) -> None:
         with patch("black.out", print):
             self.assertEqual(
-                unstyle(str(report)), "1 file reformatted, 1 file failed to reformat."
+                unstyle(str(report)),
+                "1 file reformatted, 1 file failed to reformat.",
             )
             self.assertEqual(
                 unstyle(str(report)),
@@ -52,11 +53,12 @@ class C:
         get_collection(
             hey_this_is_a_very_long_call, it_has_funny_attributes, really=True
         )[OneLevelIndex][TwoLevelIndex][ThreeLevelIndex][FourLevelIndex]
-        d[0][1][2][3][4][5][6][7][8][9][10][11][12][13][14][15][16][17][18][19][20][21][
-            22
-        ]
+        d[0][1][2][3][4][5][6][7][8][9][10][11][12][13][14][15][16][17][18][
+            19
+        ][20][21][22]
         assignment = (
-            some.rather.elaborate.rule() and another.rule.ending_with.index[123]
+            some.rather.elaborate.rule()
+            and another.rule.ending_with.index[123]
         )
 
     def easy_asserts(self) -> None:
@@ -108,7 +110,9 @@ class C:
             key8: value8,
             key9: value9,
         } == expected(
-            value, is_going_to_be="too long to fit in a single line", srsly=True
+            value,
+            is_going_to_be="too long to fit in a single line",
+            srsly=True,
         ), "Not what we expected"
 
         assert {
@@ -121,12 +125,12 @@ class C:
             key7: value7,
             key8: value8,
             key9: value9,
-        } == expected, (
-            "Not what we expected and the message is too long to fit in one line"
-        )
+        } == expected, "Not what we expected and the message is too long to fit in one line"
 
         assert expected(
-            value, is_going_to_be="too long to fit in a single line", srsly=True
+            value,
+            is_going_to_be="too long to fit in a single line",
+            srsly=True,
         ) == {
             key1: value1,
             key2: value2,
@@ -166,14 +170,17 @@ class C:
             _C.__init__.__code__.co_firstlineno + 1,
         )
 
-        assert expectedexpectedexpectedexpectedexpectedexpectedexpectedexpectedexpect == {
-            key1: value1,
-            key2: value2,
-            key3: value3,
-            key4: value4,
-            key5: value5,
-            key6: value6,
-            key7: value7,
-            key8: value8,
-            key9: value9,
-        }
+        assert (
+            expectedexpectedexpectedexpectedexpectedexpectedexpectedexpectedexpect
+            == {
+                key1: value1,
+                key2: value2,
+                key3: value3,
+                key4: value4,
+                key5: value5,
+                key6: value6,
+                key7: value7,
+                key8: value8,
+                key9: value9,
+            }
+        )

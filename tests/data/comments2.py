@@ -281,7 +281,9 @@ short
         arg3=True,
     )
     lcomp = [
-        element for element in collection if element is not None  # yup  # yup  # right
+        element  # yup
+        for element in collection  # yup
+        if element is not None  # right
     ]
     lcomp2 = [
         # hello

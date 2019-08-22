@@ -50,7 +50,11 @@ class C:
                 "https://packaging.python.org/specifications/core-metadata",
             ),
             (
-                {"metadata_version": "1.2", "name": "example", "version": "dog"},
+                {
+                    "metadata_version": "1.2",
+                    "name": "example",
+                    "version": "dog",
+                },
                 "'dog' is an invalid value for Version. "
                 "Error: Must start and end with a letter or numeral and "
                 "contain only ascii numeric and '.', '_' and '-'. "
@@ -70,7 +74,10 @@ def foo(list_a, list_b):
     results = (
         User.query.filter(User.foo == "bar")
         .filter(  # Because foo.
-            db.or_(User.field_a.astext.in_(list_a), User.field_b.astext.in_(list_b))
+            db.or_(
+                User.field_a.astext.in_(list_a),
+                User.field_b.astext.in_(list_b),
+            )
         )
         .filter(User.xyz.is_(None))
         # Another comment about the filtering on is_quux goes here.
@@ -87,7 +94,10 @@ def foo2(list_a, list_b):
     return (
         User.query.filter(User.foo == "bar")
         .filter(
-            db.or_(User.field_a.astext.in_(list_a), User.field_b.astext.in_(list_b))
+            db.or_(
+                User.field_a.astext.in_(list_a),
+                User.field_b.astext.in_(list_b),
+            )
         )
         .filter(User.xyz.is_(None))
     )
@@ -98,7 +108,10 @@ def foo3(list_a, list_b):
         # Standlone comment but weirdly placed.
         User.query.filter(User.foo == "bar")
         .filter(
-            db.or_(User.field_a.astext.in_(list_a), User.field_b.astext.in_(list_b))
+            db.or_(
+                User.field_a.astext.in_(list_a),
+                User.field_b.astext.in_(list_b),
+            )
         )
         .filter(User.xyz.is_(None))
     )
