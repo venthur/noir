@@ -30,7 +30,7 @@ if !exists("g:black_fast")
   let g:black_fast = 0
 endif
 if !exists("g:black_linelength")
-  let g:black_linelength = 88
+  let g:black_linelength = 79
 endif
 if !exists("g:black_skip_string_normalization")
   let g:black_skip_string_normalization = 0
