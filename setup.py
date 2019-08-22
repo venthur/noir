@@ -26,7 +26,7 @@ def get_version() -> str:
 
 
 setup(
-    name="black",
+    name="noir",
     version=get_version(),
     description="The uncompromising code formatter.",
     long_description=get_long_description(),
