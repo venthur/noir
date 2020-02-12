@@ -7,7 +7,7 @@ from functools import partial
 from io import BytesIO, TextIOWrapper
 import os
 from pathlib import Path
-import re
+import regex as re
 import sys
 from tempfile import TemporaryDirectory
 from typing import Any, BinaryIO, Generator, List, Tuple, Iterator, TypeVar
@@ -29,10 +29,13 @@ except ImportError:
 else:
     has_blackd_deps = True
 
+from pathspec import PathSpec
+
 ff = partial(black.format_file_in_place, mode=black.FileMode(), fast=True)
 fs = partial(black.format_str, mode=black.FileMode())
 THIS_FILE = Path(__file__)
 THIS_DIR = THIS_FILE.parent
+DETERMINISTIC_HEADER = "[Deterministic header]"
 EMPTY_LINE = "# EMPTY LINE WITH WHITESPACE" + " (this comment will be removed)"
 PY36_ARGS = [
     f"--target-version={version.name.lower()}"
@@ -170,6 +173,16 @@ class BlackTestCase(unittest.TestCase):
         )
 
     @patch("black.dump_to_file", dump_to_stderr)
+    def checkSourceFile(self, name: str) -> None:
+        path = THIS_DIR.parent / name
+        source, expected = read_data(str(path), data=False)
+        actual = fs(source)
+        self.assertFormatEqual(expected, actual)
+        black.assert_equivalent(source, actual)
+        black.assert_stable(source, actual, black.FileMode())
+        self.assertFalse(ff(path))
+
+    @patch("black.dump_to_file", dump_to_stderr)
     def test_empty(self) -> None:
         source = expected = ""
         actual = fs(source)
@@ -188,23 +201,44 @@ class BlackTestCase(unittest.TestCase):
             os.unlink(tmp_file)
         self.assertFormatEqual(expected, actual)
 
-    @patch("black.dump_to_file", dump_to_stderr)
     def test_self(self) -> None:
-        source, expected = read_data("test_black", data=False)
-        actual = fs(source)
-        self.assertFormatEqual(expected, actual)
-        black.assert_equivalent(source, actual)
-        black.assert_stable(source, actual, black.FileMode())
-        self.assertFalse(ff(THIS_FILE))
+        self.checkSourceFile("tests/test_black.py")
 
-    @patch("black.dump_to_file", dump_to_stderr)
     def test_black(self) -> None:
-        source, expected = read_data("../black", data=False)
-        actual = fs(source)
-        self.assertFormatEqual(expected, actual)
-        black.assert_equivalent(source, actual)
-        black.assert_stable(source, actual, black.FileMode())
-        self.assertFalse(ff(THIS_DIR / ".." / "black.py"))
+        self.checkSourceFile("black.py")
+
+    def test_pygram(self) -> None:
+        self.checkSourceFile("blib2to3/pygram.py")
+
+    def test_pytree(self) -> None:
+        self.checkSourceFile("blib2to3/pytree.py")
+
+    def test_conv(self) -> None:
+        self.checkSourceFile("blib2to3/pgen2/conv.py")
+
+    def test_driver(self) -> None:
+        self.checkSourceFile("blib2to3/pgen2/driver.py")
+
+    def test_grammar(self) -> None:
+        self.checkSourceFile("blib2to3/pgen2/grammar.py")
+
+    def test_literals(self) -> None:
+        self.checkSourceFile("blib2to3/pgen2/literals.py")
+
+    def test_parse(self) -> None:
+        self.checkSourceFile("blib2to3/pgen2/parse.py")
+
+    def test_pgen(self) -> None:
+        self.checkSourceFile("blib2to3/pgen2/pgen.py")
+
+    def test_tokenize(self) -> None:
+        self.checkSourceFile("blib2to3/pgen2/tokenize.py")
+
+    def test_token(self) -> None:
+        self.checkSourceFile("blib2to3/pgen2/token.py")
+
+    def test_setup(self) -> None:
+        self.checkSourceFile("setup.py")
 
     def test_piping(self) -> None:
         source, expected = read_data("../black", data=False)
@@ -237,18 +271,9 @@ class BlackTestCase(unittest.TestCase):
             black.main, args, input=BytesIO(source.encode("utf8"))
         )
         self.assertEqual(result.exit_code, 0)
-        actual = diff_header.sub("[Deterministic header]", result.output)
+        actual = diff_header.sub(DETERMINISTIC_HEADER, result.output)
         actual = actual.rstrip() + "\n"  # the diff output has a trailing space
         self.assertEqual(expected, actual)
-
-    @patch("black.dump_to_file", dump_to_stderr)
-    def test_setup(self) -> None:
-        source, expected = read_data("../setup", data=False)
-        actual = fs(source)
-        self.assertFormatEqual(expected, actual)
-        black.assert_equivalent(source, actual)
-        black.assert_stable(source, actual, black.FileMode())
-        self.assertFalse(ff(THIS_DIR / ".." / "setup.py"))
 
     @patch("black.dump_to_file", dump_to_stderr)
     def test_function(self) -> None:
@@ -329,7 +354,7 @@ class BlackTestCase(unittest.TestCase):
         finally:
             os.unlink(tmp_file)
         actual = result.output
-        actual = diff_header.sub("[Deterministic header]", actual)
+        actual = diff_header.sub(DETERMINISTIC_HEADER, actual)
         actual = actual.rstrip() + "\n"  # the diff output has a trailing space
         if expected != actual:
             dump = black.dump_to_file(actual)
@@ -591,6 +616,16 @@ class BlackTestCase(unittest.TestCase):
         )
 
     @patch("black.dump_to_file", dump_to_stderr)
+    def test_python38(self) -> None:
+        source, expected = read_data("python38")
+        actual = fs(source)
+        self.assertFormatEqual(expected, actual)
+        major, minor = sys.version_info[:2]
+        if major > 3 or (major == 3 and minor >= 8):
+            black.assert_equivalent(source, actual)
+        black.assert_stable(source, actual, black.FileMode())
+
+    @patch("black.dump_to_file", dump_to_stderr)
     def test_fmtonoff(self) -> None:
         source, expected = read_data("fmtonoff")
         actual = fs(source)
@@ -601,6 +636,14 @@ class BlackTestCase(unittest.TestCase):
     @patch("black.dump_to_file", dump_to_stderr)
     def test_fmtonoff2(self) -> None:
         source, expected = read_data("fmtonoff2")
+        actual = fs(source)
+        self.assertFormatEqual(expected, actual)
+        black.assert_equivalent(source, actual)
+        black.assert_stable(source, actual, black.FileMode())
+
+    @patch("black.dump_to_file", dump_to_stderr)
+    def test_fmtonoff3(self) -> None:
+        source, expected = read_data("fmtonoff3")
         actual = fs(source)
         self.assertFormatEqual(expected, actual)
         black.assert_equivalent(source, actual)
@@ -780,6 +823,13 @@ class BlackTestCase(unittest.TestCase):
                 "2 files would be reformatted, 3 files would be left unchanged, "
                 "2 files would fail to reformat.",
             )
+            report.check = False
+            report.diff = True
+            self.assertEqual(
+                unstyle(str(report)),
+                "2 files would be reformatted, 3 files would be left unchanged, "
+                "2 files would fail to reformat.",
+            )
 
     def test_report_quiet(self) -> None:
         report = black.Report(quiet=True)
@@ -864,6 +914,13 @@ class BlackTestCase(unittest.TestCase):
             )
             self.assertEqual(report.return_code, 123)
             report.check = True
+            self.assertEqual(
+                unstyle(str(report)),
+                "2 files would be reformatted, 3 files would be left unchanged, "
+                "2 files would fail to reformat.",
+            )
+            report.check = False
+            report.diff = True
             self.assertEqual(
                 unstyle(str(report)),
                 "2 files would be reformatted, 3 files would be left unchanged, "
@@ -956,6 +1013,13 @@ class BlackTestCase(unittest.TestCase):
             )
             self.assertEqual(report.return_code, 123)
             report.check = True
+            self.assertEqual(
+                unstyle(str(report)),
+                "2 files would be reformatted, 3 files would be left unchanged, "
+                "2 files would fail to reformat.",
+            )
+            report.check = False
+            report.diff = True
             self.assertEqual(
                 unstyle(str(report)),
                 "2 files would be reformatted, 3 files would be left unchanged, "
@@ -1104,10 +1168,10 @@ class BlackTestCase(unittest.TestCase):
         just_nl = "\n"
         with self.assertRaises(black.NothingChanged):
             black.format_file_contents(just_nl, mode=mode, fast=False)
-        same = "l = [1, 2, 3]\n"
+        same = "j = [1, 2, 3]\n"
         with self.assertRaises(black.NothingChanged):
             black.format_file_contents(same, mode=mode, fast=False)
-        different = "l = [1,2,3]"
+        different = "j = [1,2,3]"
         expected = same
         actual = black.format_file_contents(different, mode=mode, fast=False)
         self.assertEqual(expected, actual)
@@ -1139,7 +1203,7 @@ class BlackTestCase(unittest.TestCase):
 
         with patch("black.out", out), patch("black.err", err):
             with self.assertRaises(AssertionError):
-                self.assertFormatEqual("l = [1, 2, 3]", "l = [1, 2, 3,]")
+                self.assertFormatEqual("j = [1, 2, 3]", "j = [1, 2, 3,]")
 
         out_str = "".join(out_lines)
         self.assertTrue("Expected tree:" in out_str)
@@ -1317,6 +1381,13 @@ class BlackTestCase(unittest.TestCase):
             two = black.read_cache(short_mode)
             self.assertNotIn(path, two)
 
+    def test_tricky_unicode_symbols(self) -> None:
+        source, expected = read_data("tricky_unicode_symbols")
+        actual = fs(source)
+        self.assertFormatEqual(expected, actual)
+        black.assert_equivalent(source, actual)
+        black.assert_stable(source, actual, black.FileMode())
+
     def test_single_file_force_pyi(self) -> None:
         reg_mode = black.FileMode()
         pyi_mode = black.FileMode(is_pyi=True)
@@ -1414,6 +1485,13 @@ class BlackTestCase(unittest.TestCase):
                 self.assertIn(path, pyi_cache)
                 self.assertNotIn(path, normal_cache)
 
+    def test_collections(self) -> None:
+        source, expected = read_data("collections")
+        actual = fs(source)
+        self.assertFormatEqual(expected, actual)
+        black.assert_equivalent(source, actual)
+        black.assert_stable(source, actual, black.FileMode())
+
     def test_pipe_force_py36(self) -> None:
         source, expected = read_data("force_py36")
         result = CliRunner().invoke(
@@ -1430,6 +1508,7 @@ class BlackTestCase(unittest.TestCase):
         include = re.compile(r"\.pyi?$")
         exclude = re.compile(r"/exclude/|/\.definitely_exclude/")
         report = black.Report()
+        gitignore = PathSpec.from_lines("gitwildmatch", [])
         sources: List[Path] = []
         expected = [
             Path(path / "b/dont_exclude/a.py"),
@@ -1438,7 +1517,28 @@ class BlackTestCase(unittest.TestCase):
         this_abs = THIS_DIR.resolve()
         sources.extend(
             black.gen_python_files_in_dir(
-                path, this_abs, include, exclude, report
+                path, this_abs, include, exclude, report, gitignore
+            )
+        )
+        self.assertEqual(sorted(expected), sorted(sources))
+
+    def test_gitignore_exclude(self) -> None:
+        path = THIS_DIR / "data" / "include_exclude_tests"
+        include = re.compile(r"\.pyi?$")
+        exclude = re.compile(r"")
+        report = black.Report()
+        gitignore = PathSpec.from_lines(
+            "gitwildmatch", ["exclude/", ".definitely_exclude"]
+        )
+        sources: List[Path] = []
+        expected = [
+            Path(path / "b/dont_exclude/a.py"),
+            Path(path / "b/dont_exclude/a.pyi"),
+        ]
+        this_abs = THIS_DIR.resolve()
+        sources.extend(
+            black.gen_python_files_in_dir(
+                path, this_abs, include, exclude, report, gitignore
             )
         )
         self.assertEqual(sorted(expected), sorted(sources))
@@ -1446,6 +1546,7 @@ class BlackTestCase(unittest.TestCase):
     def test_empty_include(self) -> None:
         path = THIS_DIR / "data" / "include_exclude_tests"
         report = black.Report()
+        gitignore = PathSpec.from_lines("gitwildmatch", [])
         empty = re.compile(r"")
         sources: List[Path] = []
         expected = [
@@ -1467,6 +1568,7 @@ class BlackTestCase(unittest.TestCase):
                 empty,
                 re.compile(black.DEFAULT_EXCLUDES),
                 report,
+                gitignore,
             )
         )
         self.assertEqual(sorted(expected), sorted(sources))
@@ -1474,6 +1576,7 @@ class BlackTestCase(unittest.TestCase):
     def test_empty_exclude(self) -> None:
         path = THIS_DIR / "data" / "include_exclude_tests"
         report = black.Report()
+        gitignore = PathSpec.from_lines("gitwildmatch", [])
         empty = re.compile(r"")
         sources: List[Path] = []
         expected = [
@@ -1492,6 +1595,7 @@ class BlackTestCase(unittest.TestCase):
                 re.compile(black.DEFAULT_INCLUDES),
                 empty,
                 report,
+                gitignore,
             )
         )
         self.assertEqual(sorted(expected), sorted(sources))
@@ -1538,15 +1642,17 @@ class BlackTestCase(unittest.TestCase):
         include = re.compile(black.DEFAULT_INCLUDES)
         exclude = re.compile(black.DEFAULT_EXCLUDES)
         report = black.Report()
+        gitignore = PathSpec.from_lines("gitwildmatch", [])
         # `child` should behave like a symlink which resolved path is clearly
         # outside of the `root` directory.
         path.iterdir.return_value = [child]
         child.resolve.return_value = Path("/a/b/c")
+        child.as_posix.return_value = "/a/b/c"
         child.is_symlink.return_value = True
         try:
             list(
                 black.gen_python_files_in_dir(
-                    path, root, include, exclude, report
+                    path, root, include, exclude, report, gitignore
                 )
             )
         except ValueError as ve:
@@ -1560,7 +1666,7 @@ class BlackTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             list(
                 black.gen_python_files_in_dir(
-                    path, root, include, exclude, report
+                    path, root, include, exclude, report, gitignore
                 )
             )
         path.iterdir.assert_called()
@@ -1668,7 +1774,7 @@ class BlackDTestCase(AioHTTPTestCase):
     @unittest_run_loop
     async def test_blackd_unsupported_version(self) -> None:
         response = await self.client.post(
-            "/", data=b"what", headers={blackd.VERSION_HEADER: "2"}
+            "/", data=b"what", headers={blackd.PROTOCOL_VERSION_HEADER: "2"}
         )
         self.assertEqual(response.status, 501)
 
@@ -1679,7 +1785,7 @@ class BlackDTestCase(AioHTTPTestCase):
     @unittest_run_loop
     async def test_blackd_supported_version(self) -> None:
         response = await self.client.post(
-            "/", data=b"what", headers={blackd.VERSION_HEADER: "1"}
+            "/", data=b"what", headers={blackd.PROTOCOL_VERSION_HEADER: "1"}
         )
         self.assertEqual(response.status, 200)
 
@@ -1719,6 +1825,29 @@ class BlackDTestCase(AioHTTPTestCase):
         )
         self.assertEqual(response.status, 200)
         self.assertEqual(await response.text(), expected)
+
+    @skip_if_exception("ClientOSError")
+    @unittest.skipUnless(
+        has_blackd_deps, "blackd's dependencies are not installed"
+    )
+    @unittest_run_loop
+    async def test_blackd_diff(self) -> None:
+        diff_header = re.compile(
+            rf"(In|Out)\t\d\d\d\d-\d\d-\d\d "
+            rf"\d\d:\d\d:\d\d\.\d\d\d\d\d\d \+\d\d\d\d"
+        )
+
+        source, _ = read_data("blackd_diff.py")
+        expected, _ = read_data("blackd_diff.diff")
+
+        response = await self.client.post(
+            "/", data=source, headers={blackd.DIFF_HEADER: "true"}
+        )
+        self.assertEqual(response.status, 200)
+
+        actual = await response.text()
+        actual = diff_header.sub(DETERMINISTIC_HEADER, actual)
+        self.assertEqual(actual, expected)
 
     @skip_if_exception("ClientOSError")
     @unittest.skipUnless(
@@ -1787,6 +1916,15 @@ class BlackDTestCase(AioHTTPTestCase):
             headers={blackd.LINE_LENGTH_HEADER: "NaN"},
         )
         self.assertEqual(response.status, 400)
+
+    @skip_if_exception("ClientOSError")
+    @unittest.skipUnless(
+        has_blackd_deps, "blackd's dependencies are not installed"
+    )
+    @unittest_run_loop
+    async def test_blackd_response_black_version_header(self) -> None:
+        response = await self.client.post("/")
+        self.assertIsNotNone(response.headers.get(blackd.BLACK_VERSION_HEADER))
 
 
 if __name__ == "__main__":
